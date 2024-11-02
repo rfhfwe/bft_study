@@ -8,14 +8,14 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class HQMain {
-static Logger logger = LoggerFactory.getLogger(HQMain.class);
+public class GRMain {
+static Logger logger = LoggerFactory.getLogger(GRMain.class);
 	
 	public static final int size =22;
 
-	private static List<HQ> nodes = Lists.newArrayList();
-	private static List<HQ> HQnodes = Lists.newArrayList();
-	private static List<HQ> Bnodes = Lists.newArrayList();
+	private static List<GR> nodes = Lists.newArrayList();
+	private static List<GR> HQnodes = Lists.newArrayList();
+	private static List<GR> Bnodes = Lists.newArrayList();
 	
 	private static Random r = new Random();
 	
@@ -25,7 +25,7 @@ static Logger logger = LoggerFactory.getLogger(HQMain.class);
 
 		// 所有节点入队
 		for(int i=0;i<size;i++){
-			nodes.add(new HQ(i,size,false,true));
+			nodes.add(new GR(i,size,false,true));
 		}
 
 		// 求出：总节点 - 最大可容忍的拜占庭节点
@@ -53,44 +53,44 @@ static Logger logger = LoggerFactory.getLogger(HQMain.class);
 			nodes.get(node).req("test"+i);
 		}
 
-//		Thread.sleep(10000);
-//		System.out.println("9--------------------------------------------------------");
-//		// 1秒后，主节点宕机
-//		nodes.get(0).close();
-//		for(int i=2;i<4;i++){
-//			nodes.get(i).req("testD"+i);
-//		}
-//		//1秒后恢复
-//		Thread.sleep(1000);
-//		System.out.println("9--------------------------------------------------------");
-//
-//		nodes.get(0).back();
-//		for(int i=1;i<2;i++){
-//			nodes.get(i).req("testB"+i);
-//		}
+		Thread.sleep(10000);
+		System.out.println("9--------------------------------------------------------");
+		// 1秒后，主节点宕机
+		nodes.get(0).close();
+		for(int i=2;i<4;i++){
+			nodes.get(i).req("testD"+i);
+		}
+		//1秒后恢复
+		Thread.sleep(1000);
+		System.out.println("9--------------------------------------------------------");
+
+		nodes.get(0).back();
+		for(int i=1;i<2;i++){
+			nodes.get(i).req("testB"+i);
+		}
 	}
 
 	/**
 	 * 广播消息
 	 * @param msg
 	 */
-	public static void HQpublish(HQMsg msg){
+	public static void HQpublish(GRMsg msg){
 		logger.info("HQpublish广播消息[" +msg.getNode()+"]:"+ msg);
-		for(HQ hq:HQnodes){
+		for(GR hq:HQnodes){
 			// 模拟网络时延
 			TimerManager.schedule(()->{
-				hq.push(new HQMsg(msg));
+				hq.push(new GRMsg(msg));
 				return null;
 			}, net[msg.getNode()*10+hq.getIndex()]);
 		}
 	}
 	
-	public static void publish(HQMsg msg){
+	public static void publish(GRMsg msg){
 		logger.info("publish广播消息[" +msg.getNode()+"]:"+ msg);
-		for(HQ hq:nodes){
+		for(GR hq:nodes){
 			// 模拟网络时延
 			TimerManager.schedule(()->{
-				hq.push(new HQMsg(msg));
+				hq.push(new GRMsg(msg));
 				return null;
 			}, net[msg.getNode()*10+hq.getIndex()]);
 		}
@@ -160,7 +160,7 @@ static Logger logger = LoggerFactory.getLogger(HQMain.class);
 	 * @param toIndex
 	 * @param msg
 	 */
-	public static void send(int toIndex, HQMsg msg){
+	public static void send(int toIndex, GRMsg msg){
 		// 模拟网络时延
 		TimerManager.schedule(()->{
 			nodes.get(toIndex).push(msg);

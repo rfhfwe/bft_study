@@ -1,6 +1,6 @@
 package com.pbft;
 
-public class HQMsg {
+public class GRMsg {
 private boolean isOk; // 模拟校验是否通过
 	
 	private int type; // 消息类型
@@ -11,7 +11,7 @@ private boolean isOk; // 模拟校验是否通过
 	private long time; // 时间戳
 	private String data; // 数据,表示数据的hash,必须唯一
 	
-	public HQMsg(int type,int node) {
+	public GRMsg(int type, int node) {
 		this.type = type;
 		this.node = node;
 		this.onode = node;
@@ -19,7 +19,7 @@ private boolean isOk; // 模拟校验是否通过
 		this.isOk = true;
 	}
 	
-	public HQMsg(HQMsg msg) {
+	public GRMsg(GRMsg msg) {
 		this.isOk = msg.isOk;
 		this.type = msg.type;
 		this.node = msg.node;

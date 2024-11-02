@@ -22,7 +22,7 @@ import com.google.common.util.concurrent.AtomicLongMap;
 
 import static com.pbft.Common.*;
 
-public class HQ {
+public class GR {
 	
 Logger logger = LoggerFactory.getLogger(getClass());
 	
@@ -38,7 +38,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	private volatile int credit; // 信用分
 
 	// 消息队列
-	private BlockingQueue<HQMsg> qbm = Queues.newLinkedBlockingQueue();
+	private BlockingQueue<GRMsg> qbm = Queues.newLinkedBlockingQueue();
 
 	// 预准备阶段投票信息
 	private Set<String> votes_pre = Sets.newConcurrentHashSet();
@@ -52,10 +52,10 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	private AtomicLongMap<String> aggre_comm = AtomicLongMap.create();
 
 	// 成功处理过的请求
-	private Map<String,HQMsg> doneMsg = Maps.newConcurrentMap();
+	private Map<String, GRMsg> doneMsg = Maps.newConcurrentMap();
 
 	// 作为主节点受理过的请求
-	private Map<String,HQMsg> applyMsg = Maps.newConcurrentMap();
+	private Map<String, GRMsg> applyMsg = Maps.newConcurrentMap();
 	
 	private int index; // 节点标识
 	
@@ -75,15 +75,15 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	// 请求超时，view加1，重试
 	private Map<String,Long> timeOutsReq = Maps.newHashMap();
 	// 发送队列
-	private BlockingQueue<HQMsg> reqQueue = Queues.newLinkedBlockingDeque(100);
+	private BlockingQueue<GRMsg> reqQueue = Queues.newLinkedBlockingDeque(100);
 	// 当前请求
-	private HQMsg curMsg;
+	private GRMsg curMsg;
 	
 	private volatile AtomicInteger genNo = new AtomicInteger(0); // 序列号生成
 	
 	private Timer timer;
 	
-	public HQ(int node,int size, boolean isBytz, boolean isHQ) {
+	public GR(int node, int size, boolean isBytz, boolean isHQ) {
 		this.index = node;
 		this.size = size;
 		this.maxf = (size-1)/3;
@@ -93,14 +93,14 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		timer = new Timer("timer"+node);
 	}
 	
-	public HQ start(){
+	public GR start(){
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
 				while (isHQ) {
 					try {
 						//从消息队列中取出一个消息
-						HQMsg msg = qbm.take();
+						GRMsg msg = qbm.take();
 						doAction(msg);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
@@ -127,7 +127,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		return this;
 	}
 
-	protected boolean doAction(HQMsg msg) {
+	protected boolean doAction(GRMsg msg) {
 		if(!isRun) {
 			return false;
 		}
@@ -227,7 +227,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 				// 作为客户端发起节点
 				vnumAggreCount.incrementAndGet(this.view+1);
 				votes_vnum.add(index+"@"+(this.view+1));
-				HQMain.publish(curMsg);
+				GRMain.publish(curMsg);
 
 			}else{
 				// 已经开始选举视图，不用重复发起
@@ -236,9 +236,9 @@ Logger logger = LoggerFactory.getLogger(getClass());
 				}
 				this.viewOk = false;
 				// 作为副本节点，广播视图变更投票
-				HQMsg cv = new HQMsg(CV, this.index);
+				GRMsg cv = new GRMsg(CV, this.index);
 				cv.setVnum(this.view+1);
-				HQMain.publish(cv);
+				GRMain.publish(cv);
 			}
 			
 		});
@@ -273,7 +273,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 				// 作为客户端发起节点
 				vnumAggreCount.incrementAndGet(this.view+1);
 				votes_vnum.add(index+"@"+(this.view+1));
-				HQMain.publish(curMsg);
+				GRMain.publish(curMsg);
 			}else{
 				if(!this.viewOk) return; // 已经开始选举视图，不用重复发起
 				this.viewOk = false;
@@ -289,14 +289,14 @@ Logger logger = LoggerFactory.getLogger(getClass());
 
 	void doSendCurMsg(){
 		timeOutsReq.put(curMsg.getData(), System.currentTimeMillis());
-		HQMain.send(getPriNode(view), curMsg);
+		GRMain.send(getPriNode(view), curMsg);
 	}
 
 	public int getPriNode(int view2){
 		return view2%size;
 	}
 
-	public void push(HQMsg msg){
+	public void push(GRMsg msg){
 		try {
 			this.qbm.put(msg);
 		} catch (InterruptedException e) {
@@ -308,8 +308,8 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	 * 初始化视图view
 	 */
 	public void pubView(){
-		HQMsg sed = new HQMsg(VIEW,index);
-		HQMain.publish(sed);
+		GRMsg sed = new GRMsg(VIEW,index);
+		GRMain.publish(sed);
 	}
 	
 	/**
@@ -318,7 +318,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	 * @throws InterruptedException 
 	 */
 	public void req(String data) throws InterruptedException{
-		HQMsg req = new HQMsg(HREQ, this.index);
+		GRMsg req = new GRMsg(HREQ, this.index);
 		req.setData(data);
 		reqQueue.put(req);
 	}
@@ -337,7 +337,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		timeOuts.remove(it);
 	}
 
-	private void onChangeView(HQMsg msg) {
+	private void onChangeView(GRMsg msg) {
 		// 收集视图变更
 		String vkey = msg.getNode()+"@"+msg.getVnum();
 		if(votes_vnum.contains(vkey)){
@@ -360,9 +360,9 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	}
 	
 	//第一步 HREQ 主节点广播信息
-	private void onHReq(HQMsg msg) {
+	private void onHReq(GRMsg msg) {
 		if(!msg.isOk()) return;
-		HQMsg sed = new HQMsg(msg);
+		GRMsg sed = new GRMsg(msg);
 		sed.setNode(index);
 		if(msg.getVnum() < view) return;
 		if(msg.getVnum() == index){
@@ -374,21 +374,21 @@ Logger logger = LoggerFactory.getLogger(getClass());
 			// 主节点生成序列号
 			int no = genNo.incrementAndGet();
 			sed.setNo(no);
-			HQMain.HQpublish(sed);
+			GRMain.HQpublish(sed);
 		}else if(msg.getNode() != index){ // 自身忽略
 			// 非主节点收到，说明可能主节点宕机
 			if(doneMsg.containsKey(msg.getDataKey())){
 				
 				// 已经处理过，直接回复
 				sed.setType(REPLY);
-				HQMain.send(msg.getNode(), sed);
+				GRMain.send(msg.getNode(), sed);
 			}else{
 				// 认为客户端进行了CV投票
 				votes_vnum.add(msg.getNode()+"@"+(msg.getVnum()+1));
 				vnumAggreCount.incrementAndGet(msg.getVnum()+1);
 				// 未处理，说明可能主节点宕机，转发给主节点试试
 				logger.info("转发主节点[" +index+"]:"+ msg);
-				HQMain.send(getPriNode(view), sed);
+				GRMain.send(getPriNode(view), sed);
 				timeOutsReq.put(msg.getData(), System.currentTimeMillis());
 			}
 			
@@ -398,7 +398,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	}
 	
 	//第二步 Back 回复阶段，各个节点向主节点发送回复信息
-	private void onBack(HQMsg msg) {
+	private void onBack(GRMsg msg) {
 		if(!checkMsg(msg,true)) return;
 		
 		String key = msg.getDataKey();
@@ -417,16 +417,16 @@ Logger logger = LoggerFactory.getLogger(getClass());
 			credit = credit/2; 
 			String message = msg.getData()+"100";
 			msg.setData(message);
-			HQMsg sed = new HQMsg(msg);
+			GRMsg sed = new GRMsg(msg);
 			sed.setType(HBA);
 			sed.setNode(index);
-			HQMain.send(getPriNode(view), sed);
+			GRMain.send(getPriNode(view), sed);
 			
 		}else {
-			HQMsg sed = new HQMsg(msg);
+			GRMsg sed = new GRMsg(msg);
 			sed.setType(HBA);
 			sed.setNode(index);
-			HQMain.send(getPriNode(view), sed);
+			GRMain.send(getPriNode(view), sed);
 			
 		}
 		
@@ -435,7 +435,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	}
 
 	//第三步骤，主节点回复Confirm信息
-	private void onConfirm(HQMsg msg) {
+	private void onConfirm(GRMsg msg) {
 		num++;
 		if(!checkMsg(msg,false)) {
 			logger.info("异常消息[" +index+"]:"+msg);
@@ -460,17 +460,17 @@ Logger logger = LoggerFactory.getLogger(getClass());
 			if(agCou == hqnum){
 				aggre_pare.remove(msg.getDataKey());
 				// 进入提交阶段
-				HQMsg sed = new HQMsg(msg);
+				GRMsg sed = new GRMsg(msg);
 				sed.setType(HCON);
 				sed.setNode(index);
 				doneMsg.put(sed.getDataKey(), sed);
-				HQMain.HQpublish(sed);
+				GRMain.HQpublish(sed);
 				
 			}else {
 				num =0;
 				System.out.println("---------------------------------------存在拜占庭节点");
-				HQMain.Bstart();
-				HQMsg sed = new HQMsg(msg);
+				GRMain.Bstart();
+				GRMsg sed = new GRMsg(msg);
 				sed.setType(REQ);
 				push(sed);
 			}
@@ -482,7 +482,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 	}
 
 	//第四步
-	private void onHCommit(HQMsg msg) {
+	private void onHCommit(GRMsg msg) {
 		if(!checkMsg(msg,false)) return;
 		// data模拟数据摘要
 		String key = msg.getKey();
@@ -502,7 +502,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 ////			HQMain.send(sed.getOnode(), sed);
 //			doSomething(sed);
 //		}
-		HQMsg sed = new HQMsg(msg);
+		GRMsg sed = new GRMsg(msg);
 		sed.setType(HCOM);
 		sed.setNode(index);
 		// 回复客户端
@@ -510,7 +510,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		doSomething(sed);
 	}
 	
-	private void onPrePrepare(HQMsg msg) {
+	private void onPrePrepare(GRMsg msg) {
 		if(!checkMsg(msg,true)) return;
 		
 		String key = msg.getDataKey();
@@ -524,13 +524,13 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		// 移除请求超时，假如有请求的话
 		timeOutsReq.remove(msg.getData());
 		// 进入准备阶段
-		HQMsg sed = new HQMsg(msg);
+		GRMsg sed = new GRMsg(msg);
 		sed.setType(PA);
 		sed.setNode(index);
-		HQMain.publish(sed);
+		GRMain.publish(sed);
 	}
 	
-	private void onPrepare(HQMsg msg) {
+	private void onPrepare(GRMsg msg) {
 		if(!checkMsg(msg,false)) {
 			logger.info("异常消息[" +index+"]:"+msg);
 			return;
@@ -552,19 +552,19 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		if(agCou >= 2*maxf+1){
 			aggre_pare.remove(msg.getDataKey());
 			// 进入提交阶段
-			HQMsg sed = new HQMsg(msg);
+			GRMsg sed = new GRMsg(msg);
 			sed.setType(CM);
 			sed.setNode(index);
 			doneMsg.put(sed.getDataKey(), sed);
-			HQMain.publish(sed);
+			GRMain.publish(sed);
 		}
 		// 后续的票数肯定凑不满，超时自动清除
 			
 	}
 	
-	private void onReq(HQMsg msg) {
+	private void onReq(GRMsg msg) {
 		if(!msg.isOk()) return;
-		HQMsg sed = new HQMsg(msg);
+		GRMsg sed = new GRMsg(msg);
 		sed.setNode(index);
 		if(msg.getVnum() < view) return;
 		if(msg.getVnum() == index){
@@ -576,20 +576,20 @@ Logger logger = LoggerFactory.getLogger(getClass());
 			// 主节点生成序列号
 			int no = genNo.incrementAndGet();
 			sed.setNo(no);
-			HQMain.publish(sed);
+			GRMain.publish(sed);
 		}else if(msg.getNode() != index){ // 自身忽略
 			// 非主节点收到，说明可能主节点宕机
 			if(doneMsg.containsKey(msg.getDataKey())){
 				// 已经处理过，直接回复
 				sed.setType(REPLY);
-				HQMain.send(msg.getNode(), sed);
+				GRMain.send(msg.getNode(), sed);
 			}else{
 				// 认为客户端进行了CV投票
 				votes_vnum.add(msg.getNode()+"@"+(msg.getVnum()+1));
 				vnumAggreCount.incrementAndGet(msg.getVnum()+1);
 				// 未处理，说明可能主节点宕机，转发给主节点试试
 				logger.info("转发主节点[" +index+"]:"+ msg);
-				HQMain.send(getPriNode(view), sed);
+				GRMain.send(getPriNode(view), sed);
 				timeOutsReq.put(msg.getData(), System.currentTimeMillis());
 			}
 			
@@ -597,7 +597,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		}
 	}
 	
-	private void onCommit(HQMsg msg) {
+	private void onCommit(GRMsg msg) {
 		if(!checkMsg(msg,false)) return;
 		// data模拟数据摘要
 		String key = msg.getKey();
@@ -629,7 +629,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 				// 自身则直接回复
 				onReply(msg);
 			}else{
-				HQMsg sed = new HQMsg(msg);
+				GRMsg sed = new GRMsg(msg);
 				sed.setType(REPLY);
 				sed.setNode(index);
 				// 回复客户端
@@ -640,7 +640,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		}
 	}
 
-	private void onReply(HQMsg msg) {
+	private void onReply(GRMsg msg) {
 		if(curMsg == null || !curMsg.getData().equals(msg.getData()))return;
 //		long count = replyCount.incrementAndGet();
 //		if(count >= maxf+1){
@@ -653,20 +653,20 @@ Logger logger = LoggerFactory.getLogger(getClass());
 //		}
 	}
 
-	private void doSomething(HQMsg msg) {
+	private void doSomething(GRMsg msg) {
 		// 请求被允许，可放心执行
 		logger.info("请求执行成功[" +index+"]:"+msg);
 	}
 
-	private void onGetView(HQMsg msg) {
+	private void onGetView(GRMsg msg) {
 		if(msg.getData() == null){
 			// 请求
-			HQMsg sed = new HQMsg(msg);
+			GRMsg sed = new GRMsg(msg);
 			sed.setNode(index);
 			sed.setVnum(view);
 			sed.setData("initview");
 			
-			HQMain.send(msg.getNode(), sed);
+			GRMain.send(msg.getNode(), sed);
 		}else{
 			// 响应
 			if(this.viewOk)return;
@@ -682,7 +682,7 @@ Logger logger = LoggerFactory.getLogger(getClass());
 		
 	}
 
-	public boolean checkMsg(HQMsg msg,boolean isPre){
+	public boolean checkMsg(GRMsg msg, boolean isPre){
 		return (msg.isOk() && msg.getVnum() == view 
 				// pre阶段校验
 				&& (!isPre || msg.getNode() == index || (getPriNode(view) == msg.getNode() && msg.getNo() > genNo.get())));
